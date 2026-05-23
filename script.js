@@ -238,7 +238,7 @@ function canActNow() {
 
 function getSyncedState() {
   return {
-    board,
+    cells: encodeBoard(),
     turn,
     remaining,
     winner,
@@ -252,7 +252,7 @@ function applySyncedState(state) {
   if (!state) return;
 
   online.syncing = true;
-  board = state.board || Array.from({ length: 9 }, () => []);
+  board = state.cells ? decodeBoard(state.cells) : normalizeBoard(state.board);
   turn = state.turn || "red";
   remaining = state.remaining || {
     red: { large: 3, medium: 3, small: 3 },
@@ -264,6 +264,31 @@ function applySyncedState(state) {
   selectedSize = "";
   render();
   online.syncing = false;
+}
+
+function encodeBoard() {
+  return board.map((stack) => stack.map((piece) => `${piece.player}:${piece.size}`).join("|"));
+}
+
+function decodeBoard(cells) {
+  return Array.from({ length: 9 }, (_, index) => {
+    const cell = cells[index] || "";
+    if (!cell) return [];
+
+    return cell.split("|").map((value) => {
+      const [player, size] = value.split(":");
+      return { player, size };
+    });
+  });
+}
+
+function normalizeBoard(nextBoard) {
+  return Array.from({ length: 9 }, (_, index) => {
+    const stack = nextBoard?.[index];
+    if (!stack) return [];
+
+    return Array.isArray(stack) ? stack.filter(Boolean) : Object.values(stack).filter(Boolean);
+  });
 }
 
 function isFirebaseConfigured() {
