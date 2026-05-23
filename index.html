@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Circle OX</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app" aria-labelledby="game-title">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">OX วงกลมซ้อนขนาด</p>
+          <h1 id="game-title">Circle OX</h1>
+        </div>
+        <button class="icon-button" id="resetButton" type="button" aria-label="เริ่มเกมใหม่" title="เริ่มเกมใหม่">
+          <span aria-hidden="true">↻</span>
+        </button>
+      </section>
+
+      <section class="score-panel" aria-live="polite">
+        <div class="score-card red-card">
+          <span>แดงชนะ</span>
+          <strong id="redWins">0</strong>
+        </div>
+        <div class="message" id="message">ตาแดง: เลือกขนาด แล้ววางบนกระดาน</div>
+        <div class="score-card blue-card">
+          <span>น้ำเงินชนะ</span>
+          <strong id="blueWins">0</strong>
+        </div>
+      </section>
+
+      <section class="pieces-panel" aria-label="เลือกตัววาง">
+        <button class="piece-choice" type="button" data-size="large" aria-label="เลือกวงใหญ่">
+          <span class="choice-icon large"></span>
+          <span>ใหญ่</span>
+          <strong id="redLargeCount">3</strong>
+        </button>
+        <button class="piece-choice" type="button" data-size="medium" aria-label="เลือกวงกลาง">
+          <span class="choice-icon medium"></span>
+          <span>กลาง</span>
+          <strong id="redMediumCount">3</strong>
+        </button>
+        <button class="piece-choice" type="button" data-size="small" aria-label="เลือกวงเล็ก">
+          <span class="choice-icon small"></span>
+          <span>เล็ก</span>
+          <strong id="redSmallCount">3</strong>
+        </button>
+      </section>
+
+      <section class="board-wrap">
+        <div class="board" id="board" role="grid" aria-label="กระดาน Circle OX 3 คูณ 3"></div>
+      </section>
+
+      <section class="rules" aria-label="กติกา">
+        <strong>กติกา</strong>
+        <p>แต่ละสีมีวงใหญ่ 3 กลาง 3 เล็ก 3 วงใหญ่ทับได้ทุกขนาดและไม่มีใครทับต่อได้ วงกลางทับได้เฉพาะวงเล็ก วงเล็กวางได้เฉพาะช่องว่าง นับผู้ชนะจากวงที่อยู่ชั้นบนสุดเรียงครบ 3 ช่อง</p>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
