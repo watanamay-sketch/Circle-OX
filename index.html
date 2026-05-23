@@ -30,18 +30,30 @@
         </div>
       </section>
 
-      <section class="pieces-panel" aria-label="เลือกตัววาง">
-        <button class="piece-choice" type="button" data-size="large" aria-label="เลือกวงใหญ่">
+      <section class="online-panel" aria-label="เล่นออนไลน์">
+        <div class="online-status" id="onlineStatus">โหมดเครื่องเดียว</div>
+        <div class="online-actions">
+          <button class="online-button" id="createRoomButton" type="button">สร้างห้อง</button>
+          <input class="room-input" id="roomInput" type="text" inputmode="latin" placeholder="รหัสห้อง">
+          <button class="online-button" id="joinRoomButton" type="button">เข้าห้อง</button>
+          <button class="online-button" id="copyLinkButton" type="button" disabled>คัดลอกลิงก์</button>
+          <button class="online-button ghost" id="leaveRoomButton" type="button" disabled>ออกห้อง</button>
+        </div>
+      </section>
+
+      <section class="pieces-panel red-bank" aria-label="ตัววางสีแดง">
+        <div class="bank-title">ตัวแดง</div>
+        <button class="piece-choice" type="button" data-player="red" data-size="large" aria-label="แดงเลือกวงใหญ่">
           <span class="choice-icon large"></span>
           <span>ใหญ่</span>
           <strong id="redLargeCount">3</strong>
         </button>
-        <button class="piece-choice" type="button" data-size="medium" aria-label="เลือกวงกลาง">
+        <button class="piece-choice" type="button" data-player="red" data-size="medium" aria-label="แดงเลือกวงกลาง">
           <span class="choice-icon medium"></span>
           <span>กลาง</span>
           <strong id="redMediumCount">3</strong>
         </button>
-        <button class="piece-choice" type="button" data-size="small" aria-label="เลือกวงเล็ก">
+        <button class="piece-choice" type="button" data-player="red" data-size="small" aria-label="แดงเลือกวงเล็ก">
           <span class="choice-icon small"></span>
           <span>เล็ก</span>
           <strong id="redSmallCount">3</strong>
@@ -52,12 +64,34 @@
         <div class="board" id="board" role="grid" aria-label="กระดาน Circle OX 3 คูณ 3"></div>
       </section>
 
+      <section class="pieces-panel blue-bank" aria-label="ตัววางสีน้ำเงิน">
+        <div class="bank-title">ตัวน้ำเงิน</div>
+        <button class="piece-choice" type="button" data-player="blue" data-size="large" aria-label="น้ำเงินเลือกวงใหญ่">
+          <span class="choice-icon large"></span>
+          <span>ใหญ่</span>
+          <strong id="blueLargeCount">3</strong>
+        </button>
+        <button class="piece-choice" type="button" data-player="blue" data-size="medium" aria-label="น้ำเงินเลือกวงกลาง">
+          <span class="choice-icon medium"></span>
+          <span>กลาง</span>
+          <strong id="blueMediumCount">3</strong>
+        </button>
+        <button class="piece-choice" type="button" data-player="blue" data-size="small" aria-label="น้ำเงินเลือกวงเล็ก">
+          <span class="choice-icon small"></span>
+          <span>เล็ก</span>
+          <strong id="blueSmallCount">3</strong>
+        </button>
+      </section>
+
       <section class="rules" aria-label="กติกา">
         <strong>กติกา</strong>
         <p>แต่ละสีมีวงใหญ่ 3 กลาง 3 เล็ก 3 วงใหญ่ทับได้ทุกขนาดและไม่มีใครทับต่อได้ วงกลางทับได้เฉพาะวงเล็ก วงเล็กวางได้เฉพาะช่องว่าง นับผู้ชนะจากวงที่อยู่ชั้นบนสุดเรียงครบ 3 ช่อง</p>
       </section>
     </main>
 
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

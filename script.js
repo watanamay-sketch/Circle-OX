@@ -2,6 +2,14 @@ const boardEl = document.querySelector("#board");
 const messageEl = document.querySelector("#message");
 const resetButton = document.querySelector("#resetButton");
 const pieceButtons = [...document.querySelectorAll(".piece-choice")];
+const onlineEls = {
+  status: document.querySelector("#onlineStatus"),
+  create: document.querySelector("#createRoomButton"),
+  join: document.querySelector("#joinRoomButton"),
+  copy: document.querySelector("#copyLinkButton"),
+  leave: document.querySelector("#leaveRoomButton"),
+  room: document.querySelector("#roomInput"),
+};
 const scoreEls = {
   red: document.querySelector("#redWins"),
   blue: document.querySelector("#blueWins"),
@@ -12,6 +20,11 @@ const countEls = {
     large: document.querySelector("#redLargeCount"),
     medium: document.querySelector("#redMediumCount"),
     small: document.querySelector("#redSmallCount"),
+  },
+  blue: {
+    large: document.querySelector("#blueLargeCount"),
+    medium: document.querySelector("#blueMediumCount"),
+    small: document.querySelector("#blueSmallCount"),
   },
 };
 
@@ -50,11 +63,19 @@ let remaining;
 let winner;
 let winningLine;
 let scores = { red: 0, blue: 0 };
+let online = {
+  db: null,
+  enabled: false,
+  player: "",
+  roomId: "",
+  roomRef: null,
+  syncing: false,
+};
 
-function newGame() {
+function newGame(options = {}) {
   board = Array.from({ length: 9 }, () => []);
   turn = "red";
-  selectedSize = "large";
+  selectedSize = "";
   remaining = {
     red: { large: 3, medium: 3, small: 3 },
     blue: { large: 3, medium: 3, small: 3 },
@@ -62,6 +83,10 @@ function newGame() {
   winner = "";
   winningLine = [];
   render();
+
+  if (!options.skipSync) {
+    syncRoom();
+  }
 }
 
 function createBoard() {
@@ -79,7 +104,8 @@ function createBoard() {
 }
 
 function placePiece(index) {
-  if (winner || !canPlace(index, selectedSize)) return;
+  if (!canActNow()) return;
+  if (winner || !selectedSize || !canPlace(index, selectedSize)) return;
 
   board[index].push({ player: turn, size: selectedSize });
   remaining[turn][selectedSize] -= 1;
@@ -90,11 +116,13 @@ function placePiece(index) {
     winningLine = line;
     scores[turn] += 1;
     render();
+    syncRoom();
     return;
   }
 
   switchTurn();
   render();
+  syncRoom();
 }
 
 function canPlace(index, size) {
@@ -113,11 +141,7 @@ function getTopPiece(index) {
 
 function switchTurn() {
   turn = turn === "red" ? "blue" : "red";
-  selectedSize = getFirstAvailableSize(turn);
-}
-
-function getFirstAvailableSize(player) {
-  return ["large", "medium", "small"].find((size) => remaining[player][size] > 0) || "small";
+  selectedSize = "";
 }
 
 function getWinningLine(player) {
@@ -131,14 +155,19 @@ function render() {
   renderBoard();
   renderScores();
   renderMessage();
+  renderOnline();
 }
 
 function renderPieces() {
   pieceButtons.forEach((button) => {
+    const player = button.dataset.player;
     const size = button.dataset.size;
-    const left = remaining[turn][size];
-    button.classList.toggle("is-selected", selectedSize === size);
-    button.disabled = Boolean(winner) || left <= 0;
+    const left = remaining[player][size];
+    const isCurrentPlayer = player === turn;
+    const isOnlineOwner = !online.enabled || online.player === player;
+    button.classList.toggle("is-selected", isCurrentPlayer && selectedSize === size);
+    button.classList.toggle("is-inactive", !isCurrentPlayer || !isOnlineOwner);
+    button.disabled = Boolean(winner) || !isCurrentPlayer || !isOnlineOwner || left <= 0;
     button.querySelector("strong").textContent = left;
   });
 }
@@ -149,7 +178,7 @@ function renderBoard() {
   cells.forEach((cell, index) => {
     const topPiece = getTopPiece(index);
     cell.innerHTML = "";
-    cell.classList.toggle("is-legal", !winner && canPlace(index, selectedSize));
+    cell.classList.toggle("is-legal", !winner && Boolean(selectedSize) && canPlace(index, selectedSize));
     cell.classList.toggle("is-win", winningLine.includes(index));
     cell.disabled = Boolean(winner);
 
@@ -177,11 +206,187 @@ function renderMessage() {
     return;
   }
 
+  if (online.enabled && online.player !== turn) {
+    messageEl.textContent = `รอ${playerLabel[turn]}วาง`;
+    return;
+  }
+
+  if (!selectedSize) {
+    messageEl.textContent = `ตา${playerLabel[turn]}: เลือกขนาดก่อนวาง`;
+    return;
+  }
+
   messageEl.textContent = `ตา${playerLabel[turn]}: เลือกวง${sizeLabel[selectedSize]}แล้ววาง`;
+}
+
+function renderOnline() {
+  const configured = isFirebaseConfigured();
+  const playerText = online.player ? `คุณเป็น${playerLabel[online.player]}` : "";
+  onlineEls.status.textContent = online.enabled
+    ? `ห้อง ${online.roomId} · ${playerText}`
+    : configured
+      ? "โหมดเครื่องเดียว หรือสร้างห้องออนไลน์"
+      : "โหมดเครื่องเดียว · ใส่ Firebase config ก่อนใช้ห้องออนไลน์";
+
+  onlineEls.copy.disabled = !online.enabled;
+  onlineEls.leave.disabled = !online.enabled;
+}
+
+function canActNow() {
+  return !online.enabled || online.player === turn;
+}
+
+function getSyncedState() {
+  return {
+    board,
+    turn,
+    remaining,
+    winner,
+    winningLine,
+    scores,
+    updatedAt: Date.now(),
+  };
+}
+
+function applySyncedState(state) {
+  if (!state) return;
+
+  online.syncing = true;
+  board = state.board || Array.from({ length: 9 }, () => []);
+  turn = state.turn || "red";
+  remaining = state.remaining || {
+    red: { large: 3, medium: 3, small: 3 },
+    blue: { large: 3, medium: 3, small: 3 },
+  };
+  winner = state.winner || "";
+  winningLine = state.winningLine || [];
+  scores = state.scores || { red: 0, blue: 0 };
+  selectedSize = "";
+  render();
+  online.syncing = false;
+}
+
+function isFirebaseConfigured() {
+  return Boolean(window.CIRCLE_OX_FIREBASE_CONFIG && window.firebase?.database);
+}
+
+function setupFirebase() {
+  if (online.db) return true;
+
+  if (!isFirebaseConfigured()) {
+    alert("ยังไม่ได้ใส่ Firebase config ในไฟล์ firebase-config.js");
+    renderOnline();
+    return false;
+  }
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(window.CIRCLE_OX_FIREBASE_CONFIG);
+  }
+
+  online.db = firebase.database();
+  return true;
+}
+
+function makeRoomId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+async function createRoom() {
+  if (!setupFirebase()) return;
+
+  leaveRoom(false);
+  online.enabled = true;
+  online.player = "red";
+  online.roomId = makeRoomId();
+  online.roomRef = online.db.ref(`rooms/${online.roomId}`);
+  newGame({ skipSync: true });
+  await online.roomRef.set({
+    createdAt: Date.now(),
+    red: true,
+    blue: false,
+    state: getSyncedState(),
+  });
+  listenRoom();
+  writeRoomToUrl();
+  render();
+}
+
+async function joinRoom(roomId = onlineEls.room.value.trim().toUpperCase()) {
+  if (!setupFirebase()) return;
+  if (!roomId) {
+    alert("ใส่รหัสห้องก่อน");
+    return;
+  }
+
+  const nextRef = online.db.ref(`rooms/${roomId}`);
+  const snapshot = await nextRef.once("value");
+  if (!snapshot.exists()) {
+    alert("ไม่พบห้องนี้");
+    return;
+  }
+
+  leaveRoom(false);
+  online.enabled = true;
+  online.player = "blue";
+  online.roomId = roomId;
+  online.roomRef = nextRef;
+  await online.roomRef.update({ blue: true });
+  listenRoom();
+  writeRoomToUrl();
+  render();
+}
+
+function listenRoom() {
+  if (!online.roomRef) return;
+
+  online.roomRef.child("state").on("value", (snapshot) => {
+    applySyncedState(snapshot.val());
+  });
+}
+
+function syncRoom() {
+  if (!online.enabled || !online.roomRef || online.syncing) return;
+  online.roomRef.child("state").set(getSyncedState());
+}
+
+function leaveRoom(updateUrl = true) {
+  if (online.roomRef) {
+    online.roomRef.child("state").off();
+  }
+
+  online.enabled = false;
+  online.player = "";
+  online.roomId = "";
+  online.roomRef = null;
+  onlineEls.room.value = "";
+
+  if (updateUrl) {
+    history.replaceState(null, "", location.pathname);
+    render();
+  }
+}
+
+async function copyRoomLink() {
+  if (!online.enabled) return;
+
+  const url = new URL(location.href);
+  url.searchParams.set("room", online.roomId);
+  await navigator.clipboard.writeText(url.href);
+  onlineEls.status.textContent = `คัดลอกลิงก์ห้อง ${online.roomId} แล้ว`;
+}
+
+function writeRoomToUrl() {
+  const url = new URL(location.href);
+  url.searchParams.set("room", online.roomId);
+  history.replaceState(null, "", url);
+  onlineEls.room.value = online.roomId;
 }
 
 pieceButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    if (!canActNow()) return;
+    if (button.dataset.player !== turn) return;
+
     const size = button.dataset.size;
     if (remaining[turn][size] <= 0 || winner) return;
     selectedSize = size;
@@ -190,5 +395,14 @@ pieceButtons.forEach((button) => {
 });
 
 resetButton.addEventListener("click", newGame);
+onlineEls.create.addEventListener("click", createRoom);
+onlineEls.join.addEventListener("click", () => joinRoom());
+onlineEls.copy.addEventListener("click", copyRoomLink);
+onlineEls.leave.addEventListener("click", () => leaveRoom());
 createBoard();
 newGame();
+
+const roomFromUrl = new URLSearchParams(location.search).get("room");
+if (roomFromUrl && isFirebaseConfigured()) {
+  joinRoom(roomFromUrl.toUpperCase());
+}

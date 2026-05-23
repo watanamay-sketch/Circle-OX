@@ -16,10 +16,43 @@
 
 เปิดไฟล์ `index.html` ในเบราว์เซอร์ได้ทันที
 
+## เล่นออนไลน์กับเพื่อนแบบฟรี
+
+เกมนี้รองรับ Firebase Realtime Database ซึ่งใช้กับ GitHub Pages ได้
+
+### ตั้งค่า Firebase
+
+1. เข้าเว็บ Firebase Console แล้วสร้างโปรเจกต์ใหม่
+2. สร้าง Web app ในโปรเจกต์นั้น
+3. คัดลอก Firebase config
+4. เปิดไฟล์ `firebase-config.js`
+5. แทนค่า `null` ด้วย config ที่คัดลอกมา
+6. เปิด Realtime Database แล้วเลือกโหมดทดสอบหรือเขียน rules ให้เว็บอ่าน/เขียนได้
+
+Rules แบบง่ายสำหรับทดสอบ:
+
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
+```
+
+Rules นี้เหมาะสำหรับทดลองเล่นเท่านั้น เพราะทุกคนที่มีลิงก์ฐานข้อมูลจะอ่าน/เขียนได้
+
+หลังตั้งค่าแล้ว ในหน้าเกมจะใช้ปุ่ม:
+
+- `สร้างห้อง` สำหรับผู้เล่นสีแดง
+- `คัดลอกลิงก์` เพื่อส่งให้เพื่อน
+- เพื่อนเปิดลิงก์แล้วจะเป็นสีน้ำเงิน
+- หรือใส่รหัสห้องแล้วกด `เข้าห้อง`
+
 ## Deploy บน GitHub Pages
 
 1. สร้าง GitHub repository ใหม่
-2. อัปโหลดไฟล์ `index.html`, `styles.css`, `script.js`, และ `README.md`
+2. อัปโหลดไฟล์ `index.html`, `styles.css`, `script.js`, `firebase-config.js`, และ `README.md`
 3. ไปที่ `Settings` > `Pages`
 4. เลือก `Deploy from a branch`
 5. เลือก branch `main` และ folder `/root`
