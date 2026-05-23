@@ -32,6 +32,12 @@
 
       <section class="online-panel" aria-label="เล่นออนไลน์">
         <div class="online-status" id="onlineStatus">โหมดเครื่องเดียว</div>
+        <div class="online-status secondary" id="friendStatus">ยังไม่ได้สร้างห้อง</div>
+        <div class="starter-row" aria-label="เลือกคนเริ่มก่อน">
+          <span>เริ่มก่อน</span>
+          <button class="starter-button is-selected" id="redStartButton" type="button" data-starter="red">แดง</button>
+          <button class="starter-button" id="blueStartButton" type="button" data-starter="blue">น้ำเงิน</button>
+        </div>
         <div class="online-actions">
           <button class="online-button" id="createRoomButton" type="button">สร้างห้อง</button>
           <input class="room-input" id="roomInput" type="text" inputmode="latin" placeholder="รหัสห้อง">

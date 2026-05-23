@@ -4,12 +4,14 @@ const resetButton = document.querySelector("#resetButton");
 const pieceButtons = [...document.querySelectorAll(".piece-choice")];
 const onlineEls = {
   status: document.querySelector("#onlineStatus"),
+  friend: document.querySelector("#friendStatus"),
   create: document.querySelector("#createRoomButton"),
   join: document.querySelector("#joinRoomButton"),
   copy: document.querySelector("#copyLinkButton"),
   leave: document.querySelector("#leaveRoomButton"),
   room: document.querySelector("#roomInput"),
 };
+const starterButtons = [...document.querySelectorAll(".starter-button")];
 const scoreEls = {
   red: document.querySelector("#redWins"),
   blue: document.querySelector("#blueWins"),
@@ -69,12 +71,13 @@ let online = {
   player: "",
   roomId: "",
   roomRef: null,
+  connected: { red: false, blue: false },
   syncing: false,
 };
 
 function newGame(options = {}) {
   board = Array.from({ length: 9 }, () => []);
-  turn = "red";
+  turn = options.starter || getStarter();
   selectedSize = "";
   remaining = {
     red: { large: 3, medium: 3, small: 3 },
@@ -156,6 +159,7 @@ function render() {
   renderScores();
   renderMessage();
   renderOnline();
+  renderStarter();
 }
 
 function renderPieces() {
@@ -228,8 +232,26 @@ function renderOnline() {
       ? "โหมดเครื่องเดียว หรือสร้างห้องออนไลน์"
       : "โหมดเครื่องเดียว · ใส่ Firebase config ก่อนใช้ห้องออนไลน์";
 
+  if (online.enabled) {
+    const friend = online.player === "red" ? "blue" : "red";
+    onlineEls.friend.textContent = online.connected[friend]
+      ? `${playerLabel[friend]}เข้าห้องแล้ว`
+      : `รอ${playerLabel[friend]}เข้าห้อง`;
+  } else {
+    onlineEls.friend.textContent = "ยังไม่ได้สร้างห้อง";
+  }
+
   onlineEls.copy.disabled = !online.enabled;
   onlineEls.leave.disabled = !online.enabled;
+}
+
+function renderStarter() {
+  starterButtons.forEach((button) => {
+    const starter = button.dataset.starter;
+    const canChange = !online.enabled || online.player === "red";
+    button.classList.toggle("is-selected", starter === getStarter());
+    button.disabled = Boolean(winner) || !canChange || hasAnyPiece();
+  });
 }
 
 function canActNow() {
@@ -244,6 +266,7 @@ function getSyncedState() {
     winner,
     winningLine,
     scores,
+    starter: getStarter(),
     updatedAt: Date.now(),
   };
 }
@@ -261,9 +284,29 @@ function applySyncedState(state) {
   winner = state.winner || "";
   winningLine = state.winningLine || [];
   scores = state.scores || { red: 0, blue: 0 };
+  document.body.dataset.starter = state.starter || "red";
   selectedSize = "";
   render();
   online.syncing = false;
+}
+
+function getStarter() {
+  return document.body.dataset.starter || "red";
+}
+
+function setStarter(starter) {
+  if (winner || hasAnyPiece()) return;
+  if (online.enabled && online.player !== "red") return;
+
+  document.body.dataset.starter = starter;
+  turn = starter;
+  selectedSize = "";
+  render();
+  syncRoom();
+}
+
+function hasAnyPiece() {
+  return board.some((stack) => stack.length > 0);
 }
 
 function encodeBoard() {
@@ -324,7 +367,8 @@ async function createRoom() {
   online.player = "red";
   online.roomId = makeRoomId();
   online.roomRef = online.db.ref(`rooms/${online.roomId}`);
-  newGame({ skipSync: true });
+  online.connected = { red: true, blue: false };
+  newGame({ skipSync: true, starter: getStarter() });
   await online.roomRef.set({
     createdAt: Date.now(),
     red: true,
@@ -355,6 +399,7 @@ async function joinRoom(roomId = onlineEls.room.value.trim().toUpperCase()) {
   online.player = "blue";
   online.roomId = roomId;
   online.roomRef = nextRef;
+  online.connected = { red: true, blue: true };
   await online.roomRef.update({ blue: true });
   listenRoom();
   writeRoomToUrl();
@@ -367,6 +412,12 @@ function listenRoom() {
   online.roomRef.child("state").on("value", (snapshot) => {
     applySyncedState(snapshot.val());
   });
+  online.roomRef.on("value", (snapshot) => {
+    const value = snapshot.val() || {};
+    online.connected = { red: Boolean(value.red), blue: Boolean(value.blue) };
+    renderOnline();
+    renderStarter();
+  });
 }
 
 function syncRoom() {
@@ -377,12 +428,14 @@ function syncRoom() {
 function leaveRoom(updateUrl = true) {
   if (online.roomRef) {
     online.roomRef.child("state").off();
+    online.roomRef.off("value");
   }
 
   online.enabled = false;
   online.player = "";
   online.roomId = "";
   online.roomRef = null;
+  online.connected = { red: false, blue: false };
   onlineEls.room.value = "";
 
   if (updateUrl) {
@@ -420,6 +473,9 @@ pieceButtons.forEach((button) => {
 });
 
 resetButton.addEventListener("click", newGame);
+starterButtons.forEach((button) => {
+  button.addEventListener("click", () => setStarter(button.dataset.starter));
+});
 onlineEls.create.addEventListener("click", createRoom);
 onlineEls.join.addEventListener("click", () => joinRoom());
 onlineEls.copy.addEventListener("click", copyRoomLink);
