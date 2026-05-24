@@ -68,6 +68,7 @@ let winningLine;
 let scores = { red: 0, blue: 0 };
 let playMode = "normal";
 let drawTimer = null;
+let invalidMessage = "";
 let online = {
   db: null,
   enabled: false,
@@ -89,6 +90,7 @@ function newGame(options = {}) {
   };
   winner = "";
   winningLine = [];
+  invalidMessage = "";
   render();
 
   if (!options.skipSync) {
@@ -112,8 +114,15 @@ function createBoard() {
 
 function placePiece(index) {
   if (!canActNow()) return;
-  if (winner || !selectedSize || !canPlace(index, selectedSize, turn)) return;
+  if (winner) return;
 
+  if (!selectedSize || !canPlace(index, selectedSize, turn)) {
+    invalidMessage = getInvalidPlaceMessage(index, selectedSize, turn);
+    render();
+    return;
+  }
+
+  invalidMessage = "";
   board[index].push({ player: turn, size: selectedSize });
   remaining[turn][selectedSize] -= 1;
 
@@ -135,11 +144,30 @@ function placePiece(index) {
 function canPlace(index, size, player = turn) {
   if (remaining[player][size] <= 0) return false;
 
+  const stack = board[index];
+  if (stack.some((piece) => piece.player === player)) return false;
+
   const topPiece = getTopPiece(index);
   if (!topPiece) return true;
-  if (topPiece.player === player) return false;
 
   return sizeRank[size] > sizeRank[topPiece.size];
+}
+
+function getInvalidPlaceMessage(index, size, player) {
+  if (!size) return `ตา${playerLabel[player]}: เลือกขนาดก่อนวาง`;
+  if (remaining[player][size] <= 0) return `วง${sizeLabel[size]}หมดแล้ว`;
+
+  const stack = board[index];
+  if (stack.some((piece) => piece.player === player)) {
+    return "ช่องนี้เคยมีตัวเองอยู่แล้ว วางไม่ได้";
+  }
+
+  const topPiece = getTopPiece(index);
+  if (topPiece && sizeRank[size] <= sizeRank[topPiece.size]) {
+    return `ต้องใช้วงที่ใหญ่กว่า${sizeLabel[topPiece.size]}ของอีกฝ่าย`;
+  }
+
+  return "ช่องนี้วางไม่ได้";
 }
 
 function getTopPiece(index) {
@@ -150,6 +178,7 @@ function getTopPiece(index) {
 function switchTurn() {
   turn = turn === "red" ? "blue" : "red";
   selectedSize = "";
+  invalidMessage = "";
 }
 
 function advanceTurn() {
@@ -158,11 +187,13 @@ function advanceTurn() {
   if (playerHasLegalMove(nextPlayer)) {
     turn = nextPlayer;
     selectedSize = "";
+    invalidMessage = "";
     return;
   }
 
   if (playerHasLegalMove(turn)) {
     selectedSize = "";
+    invalidMessage = "";
     return;
   }
 
@@ -269,6 +300,11 @@ function renderMessage() {
     return;
   }
 
+  if (invalidMessage) {
+    messageEl.textContent = invalidMessage;
+    return;
+  }
+
   if (!selectedSize) {
     if (!playerHasLegalMove(turn)) {
       messageEl.textContent = `${playerLabel[turn]}ไม่มีช่องให้วาง`;
@@ -352,6 +388,7 @@ function applySyncedState(state) {
   scores = state.scores || { red: 0, blue: 0 };
   document.body.dataset.starter = state.starter || "red";
   selectedSize = "";
+  invalidMessage = "";
   render();
   online.syncing = false;
 }
@@ -367,6 +404,7 @@ function setStarter(starter) {
   document.body.dataset.starter = starter;
   turn = starter;
   selectedSize = "";
+  invalidMessage = "";
   render();
   syncRoom();
 }
@@ -549,6 +587,7 @@ pieceButtons.forEach((button) => {
     const size = button.dataset.size;
     if (remaining[turn][size] <= 0 || winner) return;
     selectedSize = size;
+    invalidMessage = "";
     render();
   });
 });
