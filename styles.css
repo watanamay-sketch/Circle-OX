@@ -124,6 +124,30 @@ h1 {
   background: #fbfcfa;
 }
 
+.play-mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mode-button {
+  min-width: 0;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+  color: var(--ink);
+  font-weight: 950;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mode-button.is-selected {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: white;
+}
+
 .starter-row {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -418,6 +442,6 @@ h1 {
   }
 
   .online-actions {
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
   }
 }

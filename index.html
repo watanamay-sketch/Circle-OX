@@ -33,13 +33,17 @@
       <section class="online-panel" aria-label="เล่นออนไลน์">
         <div class="online-status" id="onlineStatus">โหมดเครื่องเดียว</div>
         <div class="online-status secondary" id="friendStatus">ยังไม่ได้สร้างห้อง</div>
+        <div class="play-mode-row" aria-label="เลือกโหมดเล่น">
+          <button class="mode-button is-selected" id="normalModeButton" type="button" data-play-mode="normal">เล่นปกติ</button>
+          <button class="mode-button" id="faceModeButton" type="button" data-play-mode="face">ต่อหน้า</button>
+          <button class="mode-button" id="createRoomButton" type="button" data-play-mode="online">สร้างห้อง</button>
+        </div>
         <div class="starter-row" aria-label="เลือกคนเริ่มก่อน">
           <span>เริ่มก่อน</span>
           <button class="starter-button is-selected" id="redStartButton" type="button" data-starter="red">แดง</button>
           <button class="starter-button" id="blueStartButton" type="button" data-starter="blue">น้ำเงิน</button>
         </div>
         <div class="online-actions">
-          <button class="online-button" id="createRoomButton" type="button">สร้างห้อง</button>
           <input class="room-input" id="roomInput" type="text" inputmode="latin" placeholder="รหัสห้อง">
           <button class="online-button" id="joinRoomButton" type="button">เข้าห้อง</button>
           <button class="online-button" id="copyLinkButton" type="button" disabled>คัดลอกลิงก์</button>
@@ -91,7 +95,7 @@
 
       <section class="rules" aria-label="กติกา">
         <strong>กติกา</strong>
-        <p>แต่ละสีมีวงใหญ่ 3 กลาง 3 เล็ก 3 วงใหญ่ทับได้ทุกขนาดและไม่มีใครทับต่อได้ วงกลางทับได้เฉพาะวงเล็ก วงเล็กวางได้เฉพาะช่องว่าง นับผู้ชนะจากวงที่อยู่ชั้นบนสุดเรียงครบ 3 ช่อง</p>
+        <p>แต่ละสีมีวงใหญ่ 3 กลาง 3 เล็ก 3 วางทับได้เฉพาะตัวอีกฝ่ายที่เล็กกว่าเท่านั้น ห้ามทับตัวเอง วงใหญ่ที่อยู่บนสุดไม่มีใครทับต่อได้ ถ้าฝั่งที่ถึงตาวางไม่ได้จะข้ามตา และถ้าทั้งสองฝั่งวางไม่ได้จะเสมอแล้วเริ่มใหม่อัตโนมัติ</p>
       </section>
     </main>
 

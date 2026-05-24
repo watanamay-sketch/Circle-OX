@@ -12,6 +12,7 @@ const onlineEls = {
   room: document.querySelector("#roomInput"),
 };
 const starterButtons = [...document.querySelectorAll(".starter-button")];
+const modeButtons = [...document.querySelectorAll(".mode-button")];
 const scoreEls = {
   red: document.querySelector("#redWins"),
   blue: document.querySelector("#blueWins"),
@@ -65,6 +66,8 @@ let remaining;
 let winner;
 let winningLine;
 let scores = { red: 0, blue: 0 };
+let playMode = "normal";
+let drawTimer = null;
 let online = {
   db: null,
   enabled: false,
@@ -76,6 +79,7 @@ let online = {
 };
 
 function newGame(options = {}) {
+  clearDrawTimer();
   board = Array.from({ length: 9 }, () => []);
   turn = options.starter || getStarter();
   selectedSize = "";
@@ -108,7 +112,7 @@ function createBoard() {
 
 function placePiece(index) {
   if (!canActNow()) return;
-  if (winner || !selectedSize || !canPlace(index, selectedSize)) return;
+  if (winner || !selectedSize || !canPlace(index, selectedSize, turn)) return;
 
   board[index].push({ player: turn, size: selectedSize });
   remaining[turn][selectedSize] -= 1;
@@ -123,16 +127,17 @@ function placePiece(index) {
     return;
   }
 
-  switchTurn();
+  advanceTurn();
   render();
   syncRoom();
 }
 
-function canPlace(index, size) {
-  if (remaining[turn][size] <= 0) return false;
+function canPlace(index, size, player = turn) {
+  if (remaining[player][size] <= 0) return false;
 
   const topPiece = getTopPiece(index);
   if (!topPiece) return true;
+  if (topPiece.player === player) return false;
 
   return sizeRank[size] > sizeRank[topPiece.size];
 }
@@ -145,6 +150,49 @@ function getTopPiece(index) {
 function switchTurn() {
   turn = turn === "red" ? "blue" : "red";
   selectedSize = "";
+}
+
+function advanceTurn() {
+  const nextPlayer = turn === "red" ? "blue" : "red";
+
+  if (playerHasLegalMove(nextPlayer)) {
+    turn = nextPlayer;
+    selectedSize = "";
+    return;
+  }
+
+  if (playerHasLegalMove(turn)) {
+    selectedSize = "";
+    return;
+  }
+
+  finishDraw();
+}
+
+function playerHasLegalMove(player) {
+  return ["large", "medium", "small"].some((size) => sizeHasLegalMove(player, size));
+}
+
+function sizeHasLegalMove(player, size) {
+  if (remaining[player][size] <= 0) return false;
+  return board.some((_, index) => canPlace(index, size, player));
+}
+
+function finishDraw() {
+  winner = "draw";
+  winningLine = [];
+  render();
+  syncRoom();
+  clearDrawTimer();
+  drawTimer = setTimeout(() => {
+    newGame();
+  }, 1600);
+}
+
+function clearDrawTimer() {
+  if (!drawTimer) return;
+  clearTimeout(drawTimer);
+  drawTimer = null;
 }
 
 function getWinningLine(player) {
@@ -169,9 +217,10 @@ function renderPieces() {
     const left = remaining[player][size];
     const isCurrentPlayer = player === turn;
     const isOnlineOwner = !online.enabled || online.player === player;
+    const hasLegalMove = sizeHasLegalMove(player, size);
     button.classList.toggle("is-selected", isCurrentPlayer && selectedSize === size);
     button.classList.toggle("is-inactive", !isCurrentPlayer || !isOnlineOwner);
-    button.disabled = Boolean(winner) || !isCurrentPlayer || !isOnlineOwner || left <= 0;
+    button.disabled = Boolean(winner) || !isCurrentPlayer || !isOnlineOwner || left <= 0 || !hasLegalMove;
     button.querySelector("strong").textContent = left;
   });
 }
@@ -182,7 +231,7 @@ function renderBoard() {
   cells.forEach((cell, index) => {
     const topPiece = getTopPiece(index);
     cell.innerHTML = "";
-    cell.classList.toggle("is-legal", !winner && Boolean(selectedSize) && canPlace(index, selectedSize));
+    cell.classList.toggle("is-legal", !winner && Boolean(selectedSize) && canPlace(index, selectedSize, turn));
     cell.classList.toggle("is-win", winningLine.includes(index));
     cell.disabled = Boolean(winner);
 
@@ -205,6 +254,11 @@ function renderScores() {
 }
 
 function renderMessage() {
+  if (winner === "draw") {
+    messageEl.textContent = "เสมอ! เริ่มเกมใหม่ให้อัตโนมัติ";
+    return;
+  }
+
   if (winner) {
     messageEl.textContent = `${playerLabel[winner]}ชนะ!`;
     return;
@@ -216,6 +270,11 @@ function renderMessage() {
   }
 
   if (!selectedSize) {
+    if (!playerHasLegalMove(turn)) {
+      messageEl.textContent = `${playerLabel[turn]}ไม่มีช่องให้วาง`;
+      return;
+    }
+
     messageEl.textContent = `ตา${playerLabel[turn]}: เลือกขนาดก่อนวาง`;
     return;
   }
@@ -228,9 +287,7 @@ function renderOnline() {
   const playerText = online.player ? `คุณเป็น${playerLabel[online.player]}` : "";
   onlineEls.status.textContent = online.enabled
     ? `ห้อง ${online.roomId} · ${playerText}`
-    : configured
-      ? "โหมดเครื่องเดียว หรือสร้างห้องออนไลน์"
-      : "โหมดเครื่องเดียว · ใส่ Firebase config ก่อนใช้ห้องออนไลน์";
+    : getOfflineStatus(configured);
 
   if (online.enabled) {
     const friend = online.player === "red" ? "blue" : "red";
@@ -243,6 +300,15 @@ function renderOnline() {
 
   onlineEls.copy.disabled = !online.enabled;
   onlineEls.leave.disabled = !online.enabled;
+  modeButtons.forEach((button) => {
+    button.classList.toggle("is-selected", button.dataset.playMode === playMode);
+  });
+}
+
+function getOfflineStatus(configured) {
+  if (playMode === "face") return "โหมดต่อหน้า · ผลัดกันเล่นเครื่องเดียว";
+  if (!configured) return "เล่นปกติ · ใส่ Firebase config ก่อนใช้ห้องออนไลน์";
+  return "เล่นปกติ · เล่นเครื่องเดียวหรือสร้างห้องออนไลน์";
 }
 
 function renderStarter() {
@@ -363,6 +429,7 @@ async function createRoom() {
   if (!setupFirebase()) return;
 
   leaveRoom(false);
+  playMode = "online";
   online.enabled = true;
   online.player = "red";
   online.roomId = makeRoomId();
@@ -395,6 +462,7 @@ async function joinRoom(roomId = onlineEls.room.value.trim().toUpperCase()) {
   }
 
   leaveRoom(false);
+  playMode = "online";
   online.enabled = true;
   online.player = "blue";
   online.roomId = roomId;
@@ -439,9 +507,22 @@ function leaveRoom(updateUrl = true) {
   onlineEls.room.value = "";
 
   if (updateUrl) {
+    if (playMode === "online") playMode = "normal";
     history.replaceState(null, "", location.pathname);
     render();
   }
+}
+
+function setPlayMode(nextMode) {
+  if (nextMode === "online") {
+    createRoom();
+    return;
+  }
+
+  playMode = nextMode;
+  leaveRoom(false);
+  history.replaceState(null, "", location.pathname);
+  newGame({ skipSync: true, starter: getStarter() });
 }
 
 async function copyRoomLink() {
@@ -473,10 +554,12 @@ pieceButtons.forEach((button) => {
 });
 
 resetButton.addEventListener("click", newGame);
+modeButtons.forEach((button) => {
+  button.addEventListener("click", () => setPlayMode(button.dataset.playMode));
+});
 starterButtons.forEach((button) => {
   button.addEventListener("click", () => setStarter(button.dataset.starter));
 });
-onlineEls.create.addEventListener("click", createRoom);
 onlineEls.join.addEventListener("click", () => joinRoom());
 onlineEls.copy.addEventListener("click", copyRoomLink);
 onlineEls.leave.addEventListener("click", () => leaveRoom());
